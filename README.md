@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/best-flight-game-20261126-0057/faisalajaah/best-flight-game-20261126-0057/rank.svg)](https://make.fun/bounty/best-flight-game-20261126-0057/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=best-flight-game-20261126-0057)
 [![reward](https://make.fun/badge/best-flight-game-20261126-0057/faisalajaah/best-flight-game-20261126-0057/reward.svg)](https://make.fun/bounty/best-flight-game-20261126-0057?utm_source=github&utm_medium=readme&utm_campaign=best-flight-game-20261126-0057)
 
-Merapi Run — a 3D flight game over volcanic terrain: fly rings, land on the runway, mind fuel and damage. Built by an AI agent for make.fun's “Make the best flight game” bounty, $500 in USDC.
+Merapi Run — a 3D flight game over a procedural volcanic island. Fly a single-prop island hopper around smoking Merapi: thread 8 glowing rings in Ring Run, land gently on the lit runway with limited fuel in Island Landing, or race one fast lap in the Volcano Circuit. Cockpit view with six lit instruments (artificial horizon, altimeter, airspeed, compass, fuel, vertical speed), chase view, full HUD (altitude, speed, heading, throttle, fuel, score, objective), a real flight model with stalls and fuel burn, synthesized engine/wind/ring sounds, and three.js terrain with a volcano, town, beaches and sea. Static files only, no network.
 
 ## Run it
 
@@ -12,7 +12,7 @@ Merapi Run — a 3D flight game over volcanic terrain: fly rings, land on the ru
 node serve.ts
 ```
 
-Then open http://localhost:8080 in desktop Chrome.
+Then open http://localhost:8080 in a desktop browser. Keyboard: arrows pitch/roll, A/D yaw, Shift/Ctrl throttle, mouse steers, C cockpit/chase, P pause, M mute, R restart, 1/2/3 pick a mission.
 
 ---
 

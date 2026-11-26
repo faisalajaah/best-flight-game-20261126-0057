@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Merapi Run — 3D Flight Game</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1116;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #eef1f5; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* Instrument panel: a strip of lit gauges along the bottom. */
+  #panel { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0;
+    width: min(760px, 96vw); height: 108px; z-index: 5; pointer-events: none; }
+  /* HUD: big readable numbers, top of the screen. */
+  #hud { position: fixed; inset: 0; z-index: 4; pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .hud-box { position: absolute; background: rgba(10,14,18,.55); border: 1px solid rgba(255,179,71,.45);
+    border-radius: 8px; padding: 8px 12px; }
+  #hud-top-left { top: 12px; left: 12px; }
+  #hud-top-right { top: 12px; right: 12px; text-align: right; }
+  #hud-top-center { top: 12px; left: 50%; transform: translateX(-50%); text-align: center; }
+  .hud-big { font-size: 26px; font-weight: 700; color: #7dff9a; font-variant-numeric: tabular-nums; }
+  .hud-label { font-size: 11px; letter-spacing: .14em; color: #ffb347; }
+  .hud-line { font-size: 14px; margin-top: 2px; }
+  .hud-bar { width: 130px; height: 8px; background: #222a32; border-radius: 4px; overflow: hidden; margin-top: 3px; }
+  .hud-bar > div { height: 100%; background: #7dff9a; }
+  #hud-fuel-bar { background: #ffb347; }
+  .warn { color: #ff5a4e !important; }
+  #stall-warn { position: absolute; top: 130px; left: 50%; transform: translateX(-50%);
+    color: #ff5a4e; font-size: 22px; font-weight: 800; letter-spacing: .1em; display: none; }
+  #hud-message { position: absolute; bottom: 128px; left: 50%; transform: translateX(-50%);
+    font-size: 20px; font-weight: 700; color: #ffd166; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+  /* Full-screen panels for title, pause and end. */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: rgba(6,10,14,.62); }
+  .hidden { display: none !important; }
+  .card { background: rgba(16,22,28,.92); border: 1px solid #ffb347; border-radius: 14px;
+    padding: 28px 36px; max-width: 640px; text-align: center; }
+  .card h1 { margin: 0 0 4px; font-size: 46px; color: #ffb347; letter-spacing: .04em; }
+  .card h2 { margin: 0 0 10px; font-size: 34px; color: #ffb347; }
+  .card p { margin: 8px 0; font-size: 16px; line-height: 1.5; color: #dfe6ec; }
+  .card .sub { color: #9fb2c0; font-size: 14px; }
+  .missions { display: flex; gap: 12px; margin: 18px 0 6px; }
+  .mission { flex: 1; border: 1px solid #3a4a58; border-radius: 10px; padding: 12px 10px; text-align: left; }
+  .mission b { color: #7dff9a; font-size: 15px; }
+  .mission span { display: block; font-size: 13px; color: #b8c6d0; margin-top: 4px; line-height: 1.4; }
+  .keys { font-size: 13px; color: #9fb2c0; line-height: 1.7; margin-top: 14px; }
+  .keys b { color: #eef1f5; }
+  .prompt { color: #ffd166; font-weight: 700; margin-top: 16px; font-size: 17px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Merapi Run: fly a single-prop plane around a volcanic island, through rings and onto the runway"></canvas>
+<canvas id="panel" aria-hidden="true"></canvas>
+<div id="hud" aria-hidden="true">
+  <div class="hud-box" id="hud-top-left">
+    <div class="hud-label">ALTITUDE</div><div class="hud-big" id="hud-alt">0 m</div>
+    <div class="hud-label">AIRSPEED</div><div class="hud-big" id="hud-speed">0 km/h</div>
+    <div class="hud-label">HEADING</div><div class="hud-big" id="hud-heading">000° N</div>
+  </div>
+  <div class="hud-box" id="hud-top-center">
+    <div class="hud-label" id="hud-mission">Ring Run</div>
+    <div class="hud-line" id="hud-objective">Fly through the rings</div>
+    <div class="hud-line" id="hud-ring">NEXT RING — m</div>
+  </div>
+  <div class="hud-box" id="hud-top-right">
+    <div class="hud-label">SCORE <span class="hud-big" id="hud-score">0</span> &nbsp; TIME <span id="hud-timer">0.0 s</span></div>
+    <div class="hud-line">THROTTLE <span id="hud-throttle-text">0%</span></div>
+    <div class="hud-bar"><div id="hud-throttle-bar"></div></div>
+    <div class="hud-line">FUEL <span id="hud-fuel-text">100%</span></div>
+    <div class="hud-bar"><div id="hud-fuel-bar"></div></div>
+    <div class="hud-line"><span id="hud-view">COCKPIT</span> · <span id="hud-mute">SOUND ON</span></div>
+  </div>
+  <div id="stall-warn">⚠ STALL — THROTTLE UP, NOSE DOWN</div>
+  <div id="hud-message"></div>
+</div>
+<div class="screen" id="title-screen">
+  <div class="card">
+    <h1>MERAPI RUN</h1>
+    <p>Fly a single-prop island hopper around smoking Merapi — thread the glowing
+       rings, mind your fuel, and bring her home to the runway in one piece.</p>
+    <div class="missions">
+      <div class="mission"><b>1 · Ring Run</b><span>8 glowing rings in order, against the clock.</span></div>
+      <div class="mission"><b>2 · Island Landing</b><span>Circle the bay and land gently. Fuel is limited.</span></div>
+      <div class="mission"><b>3 · Volcano Circuit</b><span>One fast lap around Merapi through 6 rings.</span></div>
+    </div>
+    <p class="keys"><b>↑ ↓</b> pitch &nbsp; <b>← →</b> roll &nbsp; <b>A / D</b> yaw &nbsp; <b>Shift / Ctrl</b> throttle<br>
+    <b>Mouse</b> steer &nbsp; <b>C</b> cockpit / chase &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute &nbsp; <b>R</b> restart</p>
+    <p class="prompt">Press 1, 2 or 3 to pick a mission — or Space to fly Ring Run</p>
+    <p class="sub" id="best-line"></p>
+  </div>
+</div>
+<div class="screen hidden" id="paused-screen">
+  <div class="card"><h2>Paused</h2><p>The island will wait for you.</p><p class="prompt">Press P to keep flying</p></div>
+</div>
+<div class="screen hidden" id="end-screen">
+  <div class="card"><h2 id="end-title">Landed</h2><p id="end-detail"></p><p id="end-score"></p>
+  <p class="prompt">Press R to fly again, or Space for the title screen</p></div>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
